@@ -10,6 +10,7 @@ sys.path.append(os.path.realpath('../util'))
 import tool
 import anydbm
 import requests
+from flask import request
 
 TYPE_AUTH=0x00
 TYPE_REG=0x01
@@ -18,6 +19,7 @@ TYPE_AUTH_GETKEY=0x03
 TYPE_AUTH_RECEIVE=0x04
 TYPE_AUTH_OK=0x05
 TYPE_AUTH_FAIL=0x06
+TYPE_LOGIN=0x07
 
 app=Flask(__name__)
 
@@ -26,23 +28,36 @@ class Suser(user):
         self.name = ''
         self.id = ''
         self.pwd = ''
-    @app.route('/serverRequest',methods=['POST'])
-    def request(self,type,data):
-        if type == TYPE_AUTH:
-            self.requestAuth(data['u1'],data['u2'],data['p'])
-        elif type == TYPE_REG:
-            self.reg(data['name'],data['id'],data['pwd'])
-        elif type == TYPE_AUTH_RECEIVE:
-            self.auth_receive(data)
-    @app.route('/login',methods=['POST'])
+    @app.route('/Request',methods=['POST'])
+    def request(self):
+        data={}
+        if request.method == 'POST':
+
+            type = request.form['type']
+            data = request.form['data']
+
+            if type == TYPE_AUTH:
+                data = self.requestAuth(data['u1'],data['u2'],data['p'])
+            elif type == TYPE_REG:
+                data = self.reg(data['name'],data['id'],data['pwd'])
+            elif type == TYPE_AUTH_RECEIVE:
+                data = self.auth_receive(data)
+            elif type == TYPE_LOGIN:
+                data = self.login(data['name'],data['pwd'])
+
+        data = json.dumps(data)
+        return data
+
     def login(self,name,pwd):
         if User.checkUser(name,pwd) is not None:
-            return True
+            return {'login':True}
         else:
-            return False
+            return {'login':False}
 
     def reg(self,name,id,pwd):
-        return User.add(id=id,name=name,pwd=pwd)
+        if User.add(id=id,name=name,pwd=pwd) == True:
+            return {'reg':'success to register'}
+        return {'reg':'fail to register'}
 
     def requestAuth(self,uf,ut,p):
         link=ut+'-'+uf
@@ -57,41 +72,46 @@ class Suser(user):
                 'TYPE':TYPE_AUTH_UPDATE,
                 'user':uf
             }
-            requests.post('',data)
+            result = requests.post('',data)
+            result = json.loads(result)
+            data=auth_receive(uf,ut,result)
         elif auth == 1:
             data={
-                'TYPE':TYPE_AUTH_GETKEY
+                'TYPE':TYPE_AUTH_GETKEY,
+                'pubkey':p
             }
         elif auth == -1:
             data={
                 'msg':'you have no auth to search',
                 'authkey':None,
             }
-            self.response(data)
         index.close()
+        return data
+
     def response(self,url,data):
         url=''
         requests.post(url,data)
 
-    def auth_receive(self,uf,ut,data):
-        if data['type']==TYPE_AUTH_OK:
-            index=anydbm.open('userAuth','w+')
-            link = tool.md5Obj(ut+'-'+uf)
-            index[link]=1
-            index.close()
-            _data={
-                'msg':'success to get authkey',
-                'authkey':data['authkey']
-            }
-        elif data['type']==TYPE_AUTH_FAIL:
-            index = anydbm.open('userAuth', 'w+')
-            link = tool.md5Obj(ut + '-' + uf)
-            index[link] = -1
-            index.close()
-            _data = {
-                'msg': 'fail to get authkey',
-                'authkey': None
-            }
-        self.response('',_data)
+
+def auth_receive(uf,ut,data):
+    if data['type']==TYPE_AUTH_OK:
+        index=anydbm.open('userAuth','w+')
+        link = tool.md5Obj(ut+'-'+uf)
+        index[link]=1
+        index.close()
+        _data={
+            'msg':'success to get authkey',
+            'authkey':data['authkey']
+        }
+    elif data['type']==TYPE_AUTH_FAIL:
+        index = anydbm.open('userAuth', 'w+')
+        link = tool.md5Obj(ut + '-' + uf)
+        index[link] = -1
+        index.close()
+        _data = {
+            'msg': 'fail to get authkey',
+            'authkey': None
+        }
+    return _data
 
 

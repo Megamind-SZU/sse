@@ -31,8 +31,8 @@ class User:
             db.session.add(UserInfo(id=id,name=name,pwd=pwd))
             db.session.commit()
         except:
-            return 'fail to add'
-        return 'success to add'
+            return False
+        return True
 
     @staticmethod
     def checkUser(name,pwd):

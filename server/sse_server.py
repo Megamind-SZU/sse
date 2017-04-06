@@ -34,7 +34,7 @@
 import socket
 import os
 import sys
-sys.path.append(os.path.realpath('../jmap'))
+sys.path.append(os.path.realpath('../util'))
 from Crypto.Hash import HMAC
 from Crypto.Hash import SHA256
 from Crypto.Cipher import AES

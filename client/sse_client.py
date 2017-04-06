@@ -35,7 +35,7 @@
 import socket
 import os
 import sys
-sys.path.append(os.path.realpath('../util'))
+sys.path.append(os.path.realpath('..'))
 from Crypto.Hash import HMAC
 from Crypto.Hash import SHA256
 from Crypto.Cipher import AES
@@ -48,7 +48,7 @@ import anydbm
 import json
 from flask import Flask
 import requests
-import jmap
+import util.jmap
 from nltk.stem.porter import PorterStemmer
 import email
 import re
@@ -232,7 +232,7 @@ class SSE_Client():
         data = r.json()
         results = data['results']
         print "Results of UPDATE: " + results 
-        
+
         # Then encrypt msg
         infile = open(infilename, "r")     
         outfilename_full = "enc_mail/" + outfilename   

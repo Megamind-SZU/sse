@@ -34,7 +34,8 @@
 import socket
 import os
 import sys
-sys.path.append(os.path.realpath('../util'))
+sys.path.append(os.path.realpath('..'))
+
 from Crypto.Hash import HMAC
 from Crypto.Hash import SHA256
 from Crypto.Cipher import AES
@@ -48,13 +49,14 @@ from flask import request
 from flask import render_template
 from flask import jsonify
 from werkzeug import secure_filename
-import jmap
-
-app = Flask(__name__)
+import util.jmap
+from Suser import app
 app.config['UPLOAD_FOLDER'] = 'mail'
 app.config['ALLOWED_EXTENSIONS'] = set(['txt', 'pdf', 'png', 'jpg', 
                                         'jpeg', 'gif'])
 DEBUG = 1
+
+
 
 # CMD list
 UPDATE = "update"

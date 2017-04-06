@@ -3,25 +3,28 @@ import user
 from flask import Flask
 import os
 import sys
-sys.path.append(os.path.realpath('../user'))
-from user import User
+sys.path.append(os.path.realpath('..'))
+from user.user import User
 import user
-sys.path.append(os.path.realpath('../util'))
-import tool
-import anydbm
+from util import tool
 import requests
 from flask import request
+import json
+
 
 TYPE_AUTH=0x00
 TYPE_REG=0x01
 TYPE_AUTH_UPDATE=0x02
 TYPE_AUTH_GETKEY=0x03
-TYPE_AUTH_RECEIVE=0x04
 TYPE_AUTH_OK=0x05
 TYPE_AUTH_FAIL=0x06
 TYPE_LOGIN=0x07
 
+
 app=Flask(__name__)
+def get_app():
+    return app
+
 
 class Suser(user):
     def __init__(self):
@@ -40,8 +43,6 @@ class Suser(user):
                 data = self.requestAuth(data['u1'],data['u2'],data['p'])
             elif type == TYPE_REG:
                 data = self.reg(data['name'],data['id'],data['pwd'])
-            elif type == TYPE_AUTH_RECEIVE:
-                data = self.auth_receive(data)
             elif type == TYPE_LOGIN:
                 data = self.login(data['name'],data['pwd'])
 
@@ -114,4 +115,6 @@ def auth_receive(uf,ut,data):
         }
     return _data
 
+if __name__ == '__main__':
+    pass
 

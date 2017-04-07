@@ -20,6 +20,7 @@ TYPE_AUTH_OK=0x05
 TYPE_AUTH_FAIL=0x06
 TYPE_LOGIN=0x07
 
+default_uri = ''
 
 app=Flask(__name__)
 def get_app():
@@ -33,7 +34,6 @@ class Suser(user):
         self.pwd = ''
     @app.route('/Request',methods=['POST'])
     def request(self):
-        data={}
         if request.method == 'POST':
 
             type = request.form['type']
@@ -42,12 +42,12 @@ class Suser(user):
             if type == TYPE_AUTH:
                 data = self.requestAuth(data['u1'],data['u2'],data['p'])
             elif type == TYPE_REG:
-                data = self.reg(data['name'],data['id'],data['pwd'])
+                data = self.reg(data['name'],data['pwd'])
             elif type == TYPE_LOGIN:
                 data = self.login(data['name'],data['pwd'])
 
-        data = json.dumps(data)
-        return data
+        _data = json.dumps(data)
+        return _data
 
     def login(self,name,pwd):
         if User.checkUser(name,pwd) is not None:
@@ -55,8 +55,8 @@ class Suser(user):
         else:
             return {'login':False}
 
-    def reg(self,name,id,pwd):
-        if User.add(id=id,name=name,pwd=pwd) == True:
+    def reg(self,name,pwd):
+        if User.add(name=name,pwd=pwd) == True:
             return {'reg':'success to register'}
         return {'reg':'fail to register'}
 
@@ -71,9 +71,10 @@ class Suser(user):
         if auth == 0:
             data={
                 'TYPE':TYPE_AUTH_UPDATE,
-                'user':uf
+                'uf':uf,
+                'pubkey':p
             }
-            result = requests.post('',data)
+            result = requests.post(default_uri,data)
             result = json.loads(result)
             data=auth_receive(uf,ut,result)
         elif auth == 1:
@@ -81,6 +82,9 @@ class Suser(user):
                 'TYPE':TYPE_AUTH_GETKEY,
                 'pubkey':p
             }
+            result = requests.post(default_uri, data)
+            result = json.loads(result)
+            data = auth_receive(uf, ut, result)
         elif auth == -1:
             data={
                 'msg':'you have no auth to search',
@@ -90,7 +94,6 @@ class Suser(user):
         return data
 
     def response(self,url,data):
-        url=''
         requests.post(url,data)
 
 

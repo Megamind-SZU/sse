@@ -61,7 +61,7 @@ UPDATE = "update"
 ADD_MAIL = "addmail"
 
 # Default url is localhost, and the port 5000 is set by Flask on the server
-DEFAULT_URL = "http://localhost:5000/"
+DEFAULT_URL = "http://localhost:7070/"
 
 NO_RESULTS = "Found no results for query"
 

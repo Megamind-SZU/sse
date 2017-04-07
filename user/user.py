@@ -4,8 +4,8 @@ from flask_sqlalchemy import SQLAlchemy
 from Crypto.Hash import MD5
 import os
 import sys
-sys.path.append(os.path.realpath('../util'))
-import tool
+sys.path.append(os.path.realpath('..'))
+from util import tool
 #DBConfigure
 basedir = os.path.abspath(os.path.dirname(__file__))
 app = Flask(__name__)
@@ -25,10 +25,9 @@ class UserInfo(db.Model):
 
 class User:
     @staticmethod
-    def add(id,name,pwd):
-        pwd=tool.md5Obj(pwd)
+    def add(name,pwd):
         try:
-            db.session.add(UserInfo(id=id,name=name,pwd=pwd))
+            db.session.add(UserInfo(name=name,pwd=pwd))
             db.session.commit()
         except:
             return False
@@ -36,9 +35,6 @@ class User:
 
     @staticmethod
     def checkUser(name,pwd):
-        md5tool = MD5.new()
-        md5tool.update(pwd)
-        pwd = md5tool.hexdigest()
         return UserInfo.query.filter_by(name=name).filter_by(pwd=pwd).first()
 
     @staticmethod

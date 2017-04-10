@@ -11,7 +11,7 @@ from Crypto import Random
 from Crypto.Cipher import PKCS1_v1_5 as pkcs
 from Crypto.PublicKey import RSA
 
-default_uri = "http://127.0.0.1:7070/Request"
+server_uri = "http://127.0.0.1:7070/Request"
 TYPE_AUTH=0x00
 TYPE_REG=0x01
 TYPE_AUTH_UPDATE=0x02
@@ -24,13 +24,27 @@ app=Flask(__name__)
 def get_app():
     return app
 
-sse_key=''
+
 
 class Cuser():
+
+    def __init__(self):
+        self.sse_key = ''
+
+
     @staticmethod
-    def authRequest():
+    def authRequest(ut,uf,p):
         if Cuser.loginRequest() == True:
-            pass
+            data={
+                'type':TYPE_AUTH,
+                'ut':ut,
+                'uf':uf,
+                'pubkey':p
+            }
+            enc_key=requests.post(url=server_uri,data=data)
+            enc_key = json.loads(enc_key)
+            return enc_key
+
 
     @app.route('/authResponse',methods=['POST'])
     def authResponse(self):
@@ -43,7 +57,7 @@ class Cuser():
                 uf = request.form['uf']
                 s = raw_input(uf+" request auth from you|A(accept) or R(reject):")
                 if s == 'A':
-                    enc_key = get_enc_key(p)
+                    enc_key = self.get_enc_key(p)
                     result = {
                         'type':TYPE_AUTH_OK,
                         'authkey':enc_key
@@ -65,7 +79,7 @@ class Cuser():
             'name':name,
             'pwd':pwd
         }
-        result=requests.post(default_uri,data)
+        result=requests.post(server_uri,data)
         result=json.loads(result)
         user_record(name=name,pwd=pwd)
         print result['reg']
@@ -74,10 +88,33 @@ class Cuser():
     def loginRequest():
         data=user_record()
         data['type']=TYPE_LOGIN
-        result=requests.post(default_uri,data)
+        result=requests.post(server_uri,data)
         result=json.loads(result)
         return result['login']
 
+    def get_enc_key(self,p):
+        random_generator = Random.new().read
+        rsa = RSA.generate(2048, random_generator)
+        rsakey = RSA.importKey(p)
+        cipher = pkcs.new(rsakey)
+        dec_key = cipher.encrypt(self.sse_key)
+        return dec_key
+
+    @staticmethod
+    def get_dec_key(self,enc_key,prikey):
+        random_generator = Random.new().read
+        rsakey = RSA.importKey(prikey)
+        cipher = pkcs.new(rsakey)
+        dec_key = cipher.decrypt(enc_key,random_generator)
+        return dec_key
+
+    @staticmethod
+    def init_authKey():
+        random_generator = Random.new().read
+        rsa = RSA.generate(2048,random_generator)
+        private_pem = rsa.exportKey()
+        public_pem = rsa.publickey().exportKey()
+        return (public_pem,private_pem)
 
 def user_record(name='',pwd=''):
     record = anydbm.open('Urecord','c')
@@ -94,13 +131,7 @@ def user_record(name='',pwd=''):
     record.close()
     return data
 
-def get_enc_key(p):
-    random_generator = Random.new().read
-    rsa = RSA.generate(2048, random_generator)
-    rsakey = RSA.importKey(p)
-    cipher = pkcs.new(rsakey)
-    enc_key = cipher.encrypt(sse_key)
-    return enc_key
+
 
 if __name__ == '__main__':
     app.run(host='127.0.0.1',port=7080,debug=True)

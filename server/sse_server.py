@@ -35,7 +35,7 @@ import socket
 import os
 import sys
 sys.path.append(os.path.realpath('..'))
-
+from util import jmap
 from Crypto.Hash import HMAC
 from Crypto.Hash import SHA256
 from Crypto.Cipher import AES
@@ -107,7 +107,7 @@ def add_mail():
 # TODO: Use this to request mail? Currently just sending them back after
 # SEARCH routine
 @app.route('/getmail', methods=['GET'])
-def get_mail():
+def get_mail(index):
     pass
 
 
@@ -361,6 +361,27 @@ def get_index_len(index):
             print "\n"
 
     return count
+
+
+def decryptMail(buf, outfile=None):
+    # Just pass in input file buf and fd in which to write out
+
+    if buf == '':
+        print("[Dec] mail to decrypt is empty!\nExiting\n")
+        exit(1)
+
+    # self.kPrime[:16] is the  first 16 bytes of kPrime, ie: enc key
+    # buf[:16] is the iv of encrypted msg
+    cipher = AES.new(kPrime[:16], AES.MODE_CBC, buf[:16])
+
+    # decrypt all but first 16 bytes (iv)
+    # if outfile is supplied, write to file
+    if (outfile):
+        outfile.write(cipher.decrypt(buf[16:]))
+    # else print to terminal
+    else:
+        tmp = cipher.decrypt(buf[16:])
+        print tmp
 
 
 if __name__ == '__main__':

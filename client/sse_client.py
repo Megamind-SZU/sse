@@ -1,28 +1,3 @@
-'''
- The MIT License (MIT)
-
- Copyright (c) 2016 Ian Van Houdt
-
- Permission is hereby granted, free of charge, to any person obtaining a copy
- of this software and associated documentation files (the "Software"), to deal
- in the Software without restriction, including without limitation the rights
- to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- copies of the Software, and to permit persons to whom the Software is
- furnished to do so, subject to the following conditions:
-
- The above copyright notice and this permission notice shall be included in all
- copies or substantial portions of the Software.
-
- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- SOFTWARE.
-'''
-
-
 ############
 #
 #  sse_client.py
@@ -48,12 +23,17 @@ import anydbm
 import json
 from flask import Flask
 import requests
-import util.jmap
+from util import jmap
 from nltk.stem.porter import PorterStemmer
 import email
 import re
 import urllib
 import urllib2
+from util.tool import md5Obj
+from Cuser import Cuser
+from Cuser import user_record
+user = user_record()
+name = user['name']
 
 DEBUG = 1
 SEARCH = "search"
@@ -91,7 +71,10 @@ class SSE_Client():
 
         # TODO: placeholder for password. Will eventually take
         # as an arg of some sort
-        self.password = b"password"
+        user = anydbm.open('userAuth', 'r')
+        pwd = user['pwd']
+        user.close()
+        self.password = pwd
 
         # TODO: need to sort out use of salt. Previously, salt was
         # randomly generated in initKeys, but the resulting pass-
@@ -99,8 +82,8 @@ class SSE_Client():
         # decryption was impossible. Hardcoding salt makes dectyption
         # possible but may be a bad short cut
         self.iv = None
-        self.salt = "$2b$12$ddTuco8zWXF2.kTqtOZa9O"
-
+        #self.salt = "$2b$12$ddTuco8zWXF2.kTqtOZa9O"
+        self.salt = get_salt()
         # Two keys, generated/Initialized by KDF
         (self.k, self.kPrime) = self.initKeys()
 
@@ -164,7 +147,7 @@ class SSE_Client():
         # write encrypted data to new file
         outfile.write(self.iv + self.cipher.encrypt(buf))
 
-    def decryptMail(self, buf, outfile=None):
+    def decryptMail(self, buf, key=None,outfile=None):
         # Just pass in input file buf and fd in which to write out
 
         if buf == '': 
@@ -173,7 +156,9 @@ class SSE_Client():
 
         # self.kPrime[:16] is the  first 16 bytes of kPrime, ie: enc key
         # buf[:16] is the iv of encrypted msg
-        cipher = AES.new(self.kPrime[:16], AES.MODE_CBC, buf[:16])
+        if key == None:
+            key = self.kPrime[:16]
+        cipher = AES.new(key, AES.MODE_CBC, buf[:16])
 
         # decrypt all but first 16 bytes (iv)
         # if outfile is supplied, write to file
@@ -194,7 +179,7 @@ class SSE_Client():
         cipher = AES.new(k2[:16], AES.MODE_CBC, iv)
 
         # pad to mod 16
-        while len(document)%16 != 0:
+        while len(document)%16 != 0:self.kPrime[:16]
             document = document + "\x08"
 
         # If word and index_IDs are supplied, then we're updated the 
@@ -223,7 +208,7 @@ class SSE_Client():
         return binascii.hexlify(encId)
 
 
-    def update(self, infilename, outfilename):
+    def update(self,u,infilename, outfilename):
 
         # First update index and send it
         data = self.update_index(infilename)
@@ -242,10 +227,10 @@ class SSE_Client():
         
         outfile.seek(0)
         data = binascii.hexlify(outfile.read())
-        message = jmap.pack(ADD_MAIL, data, "1", outfilename)
+        message = jmap.pack(ADD_MAIL, data, "1", u+"/"+outfilename)
 
         # Then send message
-        r = self.send(ADD_MAIL, message, outfilename)        
+        r = self.send(ADD_MAIL, message, u+"/"+outfilename)
         data = r.json()
         results = data['results']
         print "Results of UPDATE/ADD FILE: " + results
@@ -498,6 +483,8 @@ class SSE_Client():
 
     def search(self, query, header=None, TYPE=SRCH_BODY):
 
+
+
         index = anydbm.open("index", "r")
         query = query.split()
 
@@ -570,6 +557,31 @@ class SSE_Client():
             else: 
                 print i
 
+    def search_remote(self,query):
+        index = anydbm.open('index','r')
+        query = query.split()
+
+        k = self.get_key()
+
+        L = []
+        for i in query:
+            i = i.lower()
+            k1 = self.PRF(k,("1"+i))
+            k2 = self.PRF(k,("2"+i))
+            L.append(k1,k2)
+        message = jmap.pack(SEARCH,L,"1")
+        r = self.send(SEARCH,message)
+        ret_data = r.json()
+        results = ret_data['results']
+        if results == NO_RESULTS:
+            print results
+            return -1
+        for i in results:
+            self.decryptMail(binascii.unhexlify(i),key=k,outfile=None)
+
+    def get_key(self):
+        pass
+
 
     def PRF(self, k, data):
         hmac = HMAC.new(k, data, SHA256)
@@ -599,9 +611,9 @@ class SSE_Client():
             print "[Client] Error: bad routine for send()"
             exit(1)
 
-        if (DEBUG > 1): 
-            print url
-            print values
+        #if (DEBUG > 1):
+        #    print url
+        #   print values
 
         # Send to server using requests's post method, and return results
         # to calling method
@@ -654,6 +666,16 @@ class SSE_Client():
             if F == index[cc][0]:
                 return F
             cc = cc + 1
+
+    def beforeSearch(self,ut):
+        (pubkey,prikey)=Cuser.init_authKey()
+        tmp = anydbm.open('user','r')
+        uf = tmp['name']
+        enc_key = Cuser.authRequest(ut,uf,pubkey)
+        if enc_key == None:
+            return False
+        dec_key = Cuser.get_dec_key(enc_key)
+        return dec_key
 
 
 
@@ -714,11 +736,15 @@ def main():
     elif args.update:
         if (DEBUG):
             print("Updating index with document %s" % args.update[0])
-
-        infilename = args.update[0]
-        outfilename = args.update[0].split("/")[1]
-        sse.update(infilename, outfilename)
-
+        if Cuser.loginRequest() == True:
+            infilename = args.update[0]
+            outfilename = args.update[0].split("/")[1]
+            tmp = anydbm.open('user','r')
+            u = tmp['name']
+            tmp.close()
+            sse.update(u,infilename, outfilename)
+        else:
+            print("fail to login|check your account")
     elif args.search:
         if (DEBUG):
            print("Searching remote index for word(s): '%s'" 
@@ -768,6 +794,20 @@ def main():
         print "Must specify a legitimate option"
         exit(1)
 
+
+def get_salt():
+    user = anydbm.open('userAuth','r')
+    name = user['name']
+    user.close()
+    name = md5Obj(name)
+    salt_save = anydbm.open(name,'c')
+    try:
+        salt = salt_save[name]
+    except:
+        salt = Random.new().read(516)
+        salt_save[name] = salt
+    finally:
+        return salt
 
 if __name__ == "__main__":
     main()

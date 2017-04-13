@@ -110,10 +110,10 @@ def jmap_header():
     return JMAP_HEADER
 
 def pack_search(data, id_num):
-    return json.dumps([SEARCH_METHOD, {"query": data}, id_num])
+    return json.dumps([SEARCH_METHOD, {"ut":data['ut'],"query": data['query']}, id_num])
 
 def pack_update(data, id_num):
-    return json.dumps([UPDATE_METHOD, {"index": data}, id_num])
+    return json.dumps([UPDATE_METHOD, {"u":data['u'],"index": data['index']}, id_num])
 
 def pack_add_file(data, id_num, filename):
     return json.dumps([ADD_FILE_METHOD, {"file": data, "filename": filename}, id_num])
@@ -152,8 +152,8 @@ def unpack_search(data):
     # Limit scope to args (data[1])
     data = data[1]
     query = data['query']
-
-    return (method, query, id_num)
+    ut = data['ut']
+    return (method, query, ut,id_num)
 
 
 def unpack_update(data):
@@ -167,8 +167,8 @@ def unpack_update(data):
     # Limit scope to args (data[1])
     data = data[1]
     new_index = data['index']
-
-    return (method, new_index, id_num)
+    u = data['u']
+    return (method, new_index,u, id_num)
 
 def unpack_add_file(data):
 

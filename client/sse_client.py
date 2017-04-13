@@ -211,7 +211,11 @@ class SSE_Client():
     def update(self,u,infilename, outfilename):
 
         # First update index and send it
-        data = self.update_index(infilename)
+        index = self.update_index(infilename)
+        data={
+            'index':index,
+            'u':u
+        }
         message = jmap.pack(UPDATE, data, "1")
         r = self.send(UPDATE, message)
         data = r.json()
@@ -220,17 +224,17 @@ class SSE_Client():
 
         # Then encrypt msg
         infile = open(infilename, "r")     
-        outfilename_full = "enc_mail/" + outfilename   
+        outfilename_full = "enc_mail/" +outfilename
         outfile = open(outfilename_full, "w+")
         self.encryptMail(infile, outfile)
         infile.close()
         
         outfile.seek(0)
         data = binascii.hexlify(outfile.read())
-        message = jmap.pack(ADD_MAIL, data, "1", u+"/"+outfilename)
+        message = jmap.pack(ADD_MAIL, data, "1", u+'/'+outfilename)
 
         # Then send message
-        r = self.send(ADD_MAIL, message, u+"/"+outfilename)
+        r = self.send(ADD_MAIL, message,u+'/'+outfilename)
         data = r.json()
         results = data['results']
         print "Results of UPDATE/ADD FILE: " + results
@@ -481,7 +485,12 @@ class SSE_Client():
         return L
 
 
-    def search(self, query, header=None, TYPE=SRCH_BODY):
+    def search(self,ut, query, header=None, TYPE=SRCH_BODY):
+
+        if ut == None:
+            tmp = anydbm.open('user','r')
+            ut = tmp['name']
+            tmp.close()
 
         index = anydbm.open("index", "r")
         query = query.split()
@@ -527,10 +536,18 @@ class SSE_Client():
         if TYPE == SRCH_HEADERS:
             Lprime = [header]
             Lprime.extend(L)
-            message = jmap.pack(SEARCH, Lprime, "1") 
+            data = {
+                'query':Lprime,
+                'ut':ut
+            }
+            message = jmap.pack(SEARCH, data, "1")
 
         else:
-            message = jmap.pack(SEARCH, L, "1")
+            data = {
+                'query': L,
+                'ut': ut
+            }
+            message = jmap.pack(SEARCH, data, "1")
 
         # Send data and unpack results.
         r = self.send(SEARCH, message) 
@@ -751,8 +768,14 @@ def main():
         if (DEBUG):
            print("Searching remote index from %s for word(s): '%s'"
                   % args.search[0],args.search[1])
-        ut = args.search[0]
-        sse.search(args.search[1])
+        if len(args.search) > 1
+            uf = args.search[0]
+            query = args.search[1]
+        else:
+            uf = None
+            query = args.search[0]
+
+        sse.search(uf,query)
 
     elif args.search_header:
         if (DEBUG):

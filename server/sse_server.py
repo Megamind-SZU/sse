@@ -119,13 +119,13 @@ def update():
         return jsonify(results='Error: not json')
 
     # Unpack 'arguments'
-    (method, new_index, id_num) = jmap.unpack(UPDATE, request.get_json())
+    (method, new_index, u,id_num) = jmap.unpack(UPDATE, request.get_json())
 
     if method != UPDATE_METHOD:
         return jsonify(results='Error: Wrong Method for url')
 
     # Open local ecypted index and get length
-    index = anydbm.open("index", "c")
+    index = anydbm.open(u+"/index", "c")
     index_len = get_index_len(index)
 
     # Iterate through update list, replacing existing entries in local
@@ -174,7 +174,7 @@ def search():
     if not request.json:
         return jsonify(results='Error: not json')
 
-    (method, query, id_num) = jmap.unpack(SEARCH, request.get_json())
+    (method, query,ut, id_num) = jmap.unpack(SEARCH, request.get_json())
 
     if method != SEARCH_METHOD:
         return jsonify(results='Error: Wrong Method for url')
@@ -186,7 +186,7 @@ def search():
         header = query[0]
         TYPE = SRCH_HEADERS
 
-    index = anydbm.open("index", "r")
+    index = anydbm.open(ut+"/index", "r")
     count = get_index_len(index)
 
     # query is a list of search terms, so each 'i' is a word/query

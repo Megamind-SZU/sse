@@ -20,7 +20,7 @@ TYPE_AUTH_OK=0x05
 TYPE_AUTH_FAIL=0x06
 TYPE_LOGIN=0x07
 
-client_uri = ''
+client_uri = 'http://127.0.0.1:7080'
 
 app=Flask(__name__)
 def get_app():

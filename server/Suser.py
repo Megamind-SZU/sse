@@ -10,7 +10,7 @@ from util import tool
 import requests
 from flask import request
 import json
-
+from Crypto.Hash import HMAC
 
 TYPE_AUTH=0x00
 TYPE_REG=0x01
@@ -20,7 +20,7 @@ TYPE_AUTH_OK=0x05
 TYPE_AUTH_FAIL=0x06
 TYPE_LOGIN=0x07
 
-default_uri = ''
+client_uri = ''
 
 app=Flask(__name__)
 def get_app():
@@ -32,15 +32,22 @@ class Suser(user):
         self.name = ''
         self.id = ''
         self.pwd = ''
+
     @app.route('/Request',methods=['POST'])
     def request(self):
         if request.method == 'POST':
 
             type = request.form['type']
             data = request.form['data']
-
             if type == TYPE_AUTH:
-                data = self.requestAuth(data['u1'],data['u2'],data['p'])
+                ca = data['ca']
+                p = data['p']
+                name = data['name']
+                uid = User.get_uid(name)
+                uid = uid.encode('UTF-8')
+                _ca = HMAC.new(p,uid).hexdigest()
+                if ca == _ca:
+                    data = self.requestAuth(data['u1'],data['u2'],data['p'])
             elif type == TYPE_REG:
                 data = self.reg(data['name'],data['pwd'])
             elif type == TYPE_LOGIN:
@@ -55,8 +62,8 @@ class Suser(user):
         else:
             return {'login':False}
 
-    def reg(self,name,pwd):
-        if User.add(name=name,pwd=pwd) == True:
+    def reg(self,name,pwd,uid):
+        if User.add(name=name,pwd=pwd,uid=uid) == True:
             return {'reg':'success to register'}
         return {'reg':'fail to register'}
 
@@ -72,17 +79,17 @@ class Suser(user):
             data={
                 'TYPE':TYPE_AUTH_UPDATE,
                 'uf':uf,
-                'pubkey':p
+                'p':p
             }
-            result = requests.post(default_uri,data)
+            result = requests.post(client_uri,data)
             result = json.loads(result)
             data=auth_receive(uf,ut,result)
         elif auth == 1:
             data={
                 'TYPE':TYPE_AUTH_GETKEY,
-                'pubkey':p
+                'p':p
             }
-            result = requests.post(default_uri, data)
+            result = requests.post(client_uri, data)
             result = json.loads(result)
             data = auth_receive(uf, ut, result)
         elif auth == -1:
@@ -93,8 +100,6 @@ class Suser(user):
         index.close()
         return data
 
-    def response(self,url,data):
-        requests.post(url,data)
 
 
 def auth_receive(uf,ut,data):

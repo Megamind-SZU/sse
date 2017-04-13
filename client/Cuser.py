@@ -10,6 +10,7 @@ from util.tool import md5Obj
 from Crypto import Random
 from Crypto.Cipher import PKCS1_v1_5 as pkcs
 from Crypto.PublicKey import RSA
+import time
 
 server_uri = "http://127.0.0.1:7070/Request"
 TYPE_AUTH=0x00
@@ -33,15 +34,16 @@ class Cuser():
 
 
     @staticmethod
-    def authRequest(ut,uf,p):
+    def authRequest(ut,uf,p,ca):
         if Cuser.loginRequest() == True:
             data={
                 'type':TYPE_AUTH,
                 'ut':ut,
                 'uf':uf,
-                'pubkey':p
+                'p':p,
+                'ca':ca
             }
-            enc_key=requests.post(url=server_uri,data=data)
+            enc_key = requests.post(url=server_uri,data=data)
             enc_key = json.loads(enc_key)
             return enc_key
 
@@ -52,7 +54,11 @@ class Cuser():
             type = request.form['type']
             p = request.form['p']
             if type == TYPE_AUTH_GETKEY:
-                pass
+                enc_key = self.get_enc_key(p)
+                result = {
+                    'type': TYPE_AUTH_OK,
+                    'authkey': enc_key
+                }
             elif type == TYPE_AUTH_UPDATE:
                 uf = request.form['uf']
                 s = raw_input(uf+" request auth from you|A(accept) or R(reject):")
@@ -74,10 +80,12 @@ class Cuser():
     @staticmethod
     def regRequest(name,pwd):
         pwd = md5Obj(pwd)
+        uid = get_uid(name,int(time.time()))
         data={
             'type':TYPE_REG,
             'name':name,
-            'pwd':pwd
+            'pwd':pwd,
+            'uid':uid
         }
         result=requests.post(server_uri,data)
         result=json.loads(result)
@@ -131,6 +139,8 @@ def user_record(name='',pwd=''):
     record.close()
     return data
 
+def get_uid(name,t):
+    return md5Obj(name+'|'+t)
 
 
 if __name__ == '__main__':

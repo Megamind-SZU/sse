@@ -483,8 +483,6 @@ class SSE_Client():
 
     def search(self, query, header=None, TYPE=SRCH_BODY):
 
-
-
         index = anydbm.open("index", "r")
         query = query.split()
 
@@ -671,10 +669,13 @@ class SSE_Client():
         (pubkey,prikey)=Cuser.init_authKey()
         tmp = anydbm.open('user','r')
         uf = tmp['name']
-        enc_key = Cuser.authRequest(ut,uf,pubkey)
+        t = tmp['timestamp']
+        uid = md5Obj(uf+'|'+t)
+        ca = HMAC.new(pubkey,uid)
+        enc_key = Cuser.authRequest(ut,uf,pubkey,ca)
         if enc_key == None:
             return False
-        dec_key = Cuser.get_dec_key(enc_key)
+        dec_key = Cuser.get_dec_key(enc_key,prikey)
         return dec_key
 
 
@@ -702,6 +703,7 @@ def main():
                         dest='decrypt_file', nargs=2)
     parser.add_argument('-i', '--inspect_index', dest='inspect_index')
     parser.add_argument('-t', '--test_http', dest='test_http')
+    parser.add_argument('-r','--reg',dest='register',nargs='2',metavar='register')
     args = parser.parse_args()
  
     sse = SSE_Client()
@@ -747,10 +749,10 @@ def main():
             print("fail to login|check your account")
     elif args.search:
         if (DEBUG):
-           print("Searching remote index for word(s): '%s'" 
-                  % args.search[0])
-
-        sse.search(args.search[0])
+           print("Searching remote index from %s for word(s): '%s'"
+                  % args.search[0],args.search[1])
+        ut = args.search[0]
+        sse.search(args.search[1])
 
     elif args.search_header:
         if (DEBUG):
@@ -789,7 +791,12 @@ def main():
         response = urllib2.urlopen(req)
         data = response.read()
         print data
-
+    elif args.register:
+        name = args.register[0]
+        pwd = args.register[1]
+        msg = Cuser.regRequest(name,pwd)
+        msg = json.loads(msg)
+        print msg['reg']
     else:
         print "Must specify a legitimate option"
         exit(1)
